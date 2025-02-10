@@ -1,101 +1,234 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { TGIInstance } from "@/types/tgi";
+
+
+export default function TGIList() {
+  const [instances, setInstances] = useState<TGIInstance[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editingInstance, setEditingInstance] = useState<TGIInstance | null>(null);
+  const [formData, setFormData] = useState({
+    url: "",
+    modelId: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    fetchInstances();
+  }, []);
+
+  const fetchInstances = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/tgi');
+      const data = await response.json();
+      setInstances(data);
+    } catch (error) {
+      console.error('获取实例失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingInstance) {
+        await fetch(`/api/tgi/${editingInstance.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      } else {
+        await fetch('/api/tgi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      }
+      fetchInstances();
+      setIsOpen(false);
+      setEditingInstance(null);
+      setFormData({ url: "", modelId: "", notes: "" });
+    } catch (error) {
+      console.error('保存实例失败:', error);
+    }
+  };
+
+  const handleEdit = (instance: TGIInstance) => {
+    setEditingInstance(instance);
+    setFormData({
+      url: instance.url,
+      modelId: instance.modelId,
+      notes: instance.notes,
+    });
+    setIsOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/tgi/${id}`, {
+        method: 'DELETE',
+      });
+      fetchInstances();
+    } catch (error) {
+      console.error('删除实例失败:', error);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">TGI 实例管理</h1>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={fetchInstances}
+            disabled={isLoading}
+          >
+            {isLoading ? "刷新中..." : "刷新"}
+          </Button>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">使用帮助</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>使用说明</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <p>在 OpenAI API 配置中，将 base URL 设置为：</p>
+                <code className="block bg-muted p-2 rounded">
+                  https://tgi-transfer.glm.ai/api/v1
+                </code>
+                <p>如有任何问题，请联系王璐。</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <PlusCircle className="w-4 h-4" />
+                添加实例
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingInstance ? "编辑实例" : "添加新实例"}
+                </DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="url">URL 地址(不带pathname) eg: http://172.24.0.158:8080</Label>
+                  <Input
+                    id="url"
+                    value={formData.url}
+                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                    placeholder="请输入 URL 地址"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="modelId">模型 ID (open-webui 上展示的模型 ID)</Label>
+                  <Input
+                    id="modelId"
+                    value={formData.modelId}
+                    onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
+                    placeholder="请输入模型 ID"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">备注</Label>
+                  <Textarea
+                    id="notes"
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="请输入备注信息"
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  {editingInstance ? "保存修改" : "添加"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>URL 地址</TableHead>
+              <TableHead>模型 ID</TableHead>
+              <TableHead>备注</TableHead>
+              <TableHead className="w-[100px]">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {instances.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                  暂无数据
+                </TableCell>
+              </TableRow>
+            ) : (
+              instances.map((instance) => (
+                <TableRow key={instance.id}>
+                  <TableCell className="font-mono">{instance.url}</TableCell>
+                  <TableCell>{instance.modelId}</TableCell>
+                  <TableCell>{instance.notes}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(instance)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(instance.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
