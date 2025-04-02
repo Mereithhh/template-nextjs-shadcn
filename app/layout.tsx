@@ -14,8 +14,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "TGI 转 OpenAI 适配器",
-  description: "TGI 转 OpenAI 适配器",
+  title: "Template NextJS Shadcn",
+  description: "Template NextJS Shadcn",
 };
 
 export default function RootLayout({
